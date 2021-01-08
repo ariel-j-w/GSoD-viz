@@ -1,0 +1,95 @@
+---
+title: "Exploration"
+author: "Ariel Wentworth"
+date: "January 2021"
+output: pdf_document
+---
+
+```{r libraries}
+library(tidyverse)
+```
+
+```{r load data}
+data <- read_csv('data/gsodi_pv_4.csv')
+head(data, 3)
+```
+
+```{r load lowest level variables from countries-2019}
+countries2019 <- read_csv('data/countries-2019.csv')
+countries2019
+```
+```{r}
+countries2019.subdomains <- countries2019 %>%
+  select('C_SD11', 'C_SD12', 'C_SD13', 'C_SD14', 'C_SD21', 'C_SD22', 'C_SD23', 'C_SD31', 
+         'C_SD32', 'C_SD33','C_SD41', 'C_SD42', 'C_SD51', 'C_SD52', 'C_SD53', 'C_SD54')
+# countries2019.subdomains
+```
+
+```{r}
+palestine <- which(countries2019$ID_country_name == 'Palestine/West Bank')
+eswatini <- which(countries2019$ID_country_name == 'Eswatini')
+uae <- which(countries2019$ID_country_name == 'United Arab Emirates')
+nkorea <- which(countries2019$ID_country_name == 'Democratic People\'s Republic of Korea')
+somalia <- which(countries2019$ID_country_name == 'Somalia')
+malaysia <- which(countries2019$ID_country_name == 'Malaysia')
+afghanistan <- which(countries2019$ID_country_name == 'Afghanistan')
+car <- which(countries2019$ID_country_name == 'Central African Republic')
+liberia <- which(countries2019$ID_country_name == 'Liberia')
+```
+
+
+```{r}
+countries2019.subdomains[palestine, 'C_SD31'] <- mean(c(countries2019$v_31_01[palestine],
+                                                        countries2019$v_31_02[palestine],
+                                                        countries2019$v_31_03[palestine],
+                                                        countries2019$v_31_04[palestine],
+                                                        countries2019$v_31_05[palestine]),
+                                                      na.rm = TRUE)
+# countries2019.subdomains[palestine, 'C_SD31']
+```
+
+```{r}
+mean52 <- mean(countries2019.subdomains$C_SD52, na.rm = TRUE)
+for (country in c(eswatini, uae, nkorea)) {
+  # print(countries2019.subdomains[country, 'C_SD52'])
+  countries2019.subdomains[country, 'C_SD52'] <- mean52
+  # print(countries2019.subdomains[country, 'C_SD52'])
+}
+```
+
+```{r}
+for (country in c(somalia, uae, malaysia, afghanistan, car, liberia)) {
+  # print(countries2019.subdomains[country, 'C_SD54'])
+  countries2019.subdomains[country, 'C_SD54'] <- mean(c(countries2019$v_54_01[country],
+                                                        countries2019$v_54_02[country]),
+                                                      na.rm = TRUE)
+  # print(countries2019.subdomains[country, 'C_SD54'])
+}
+```
+
+
+```{r}
+wss <- numeric(15)
+for (k in 1:15) wss[k] <- sum()
+for (k in 1:15) wss[k] <- sum(kmeans(countries2019.subdomains, centers = k, nstart = 60)$withinss)
+plot(1:15, wss, type = "b", xlab = "Number of Clusters", ylab = "Within Sum of Squares")
+```
+
+4-5
+
+```{r}
+km <- kmeans(countries2019.subdomains, centers = 5, nstart = 100)
+km
+```
+
+
+```{r}
+democractic <- vapply(km$cluster, function(c) which(sorted$ix == c), FUN.VALUE = integer(1))
+countries2019.clusters <- data.frame(countries2019$ID_country_name, democratic)
+colnames(countries2019.clusters) <- c('country', 'democratic')
+countries2019.clusters
+```
+```{r}
+write.csv(countries2019.clusters, 'democracy-clusters.csv', row.names = FALSE)
+```
+
