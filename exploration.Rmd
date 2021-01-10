@@ -85,10 +85,6 @@ km <- kmeans(countries2019.subdomains, centers = 5, nstart = 100)
 km
 ```
 
-```{r}
-
-```
-
 
 ```{r}
 sorted <- sort(rowMeans(km$centers), decreasing = TRUE, index.return = TRUE)
@@ -130,5 +126,12 @@ genderEquality.fit <- rpart(C_SD23C ~ C_A1+C_A2+C_A3+C_A4,
 rpart.plot(genderEquality.fit)
 ```
 
+```{r}
+genderEquality.vars <- countries %>%
+  select(C_SD23C, C_SD11, C_SD12, C_SD13, C_SD14, C_SD21, C_SD22A, C_SD22B, C_SD22C, C_SD22D, C_SD22E,
+         C_SD23A, C_SD23B, C_SD31, C_SD32, C_SD33, C_SD41, C_SD42, C_SD51, C_SD52, C_SD53, C_SD54)
+genderEquality.cor <- t(cor(genderEquality.vars, use = 'pairwise.complete.obs')[,1,drop=FALSE])
+write.csv(genderEquality.cor, 'genderEquality-correlation.csv', row.names = FALSE)
+```
 
 
