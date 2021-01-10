@@ -7,6 +7,9 @@ output: pdf_document
 
 ```{r libraries}
 library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(ggplot2)
 ```
 
 ```{r load data}
@@ -82,9 +85,14 @@ km <- kmeans(countries2019.subdomains, centers = 5, nstart = 100)
 km
 ```
 
+```{r}
+
+```
+
 
 ```{r}
-democractic <- vapply(km$cluster, function(c) which(sorted$ix == c), FUN.VALUE = integer(1))
+sorted <- sort(rowMeans(km$centers), decreasing = TRUE, index.return = TRUE)
+democratic <- vapply(km$cluster, function(c) which(sorted$ix == c), FUN.VALUE = integer(1))
 countries2019.clusters <- data.frame(countries2019$ID_country_name, democratic)
 colnames(countries2019.clusters) <- c('country', 'democratic')
 countries2019.clusters
@@ -92,4 +100,35 @@ countries2019.clusters
 ```{r}
 write.csv(countries2019.clusters, 'democracy-clusters.csv', row.names = FALSE)
 ```
+
+
+
+
+```{r}
+countries <- read.csv('data/complete-countries.csv')
+# countries
+```
+
+```{r}
+ggplot(countries, aes(x = C_SD23C)) + 
+  geom_density(fill = '#8dcf61', color = '#6ba147', alpha=0.7)
+```
+
+
+```{r}
+countries.train80 <- read.csv('data/train80-countries.csv')
+countries.test <- read.csv('data/test-countries.csv')
+# countries.train80
+# countries.test
+```
+
+```{r}
+genderEquality.fit <- rpart(C_SD23C ~ C_A1+C_A2+C_A3+C_A4,
+                            data = countries.train80,
+                            method = 'anova')
+# summary(genderEquality.fit)
+rpart.plot(genderEquality.fit)
+```
+
+
 
