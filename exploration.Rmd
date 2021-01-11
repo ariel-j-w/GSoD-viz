@@ -10,23 +10,41 @@ library(tidyverse)
 library(rpart)
 library(rpart.plot)
 library(ggplot2)
+library(plotly)
 ```
+
+# Exploration
+
+In this file, we build up the preliminary exploration needed for an investigative visualization piece of the [Global State of Democracy Index](https://www.idea.int/gsod-indices/dataset-resources) (hereafter GSoDi). All data has been [mildly pre-processed](https://github.com/ariel-j-w/GSoD-viz/blob/main/pre-processing.ipynb) already, and here we focus on building models and doing quick exploratoy viz as part of the brainstorming process for a future Observable notebook with robust d3 visualizations.
 
 ```{r load data}
 data <- read_csv('data/gsodi_pv_4.csv')
 head(data, 3)
 ```
 
+## Overview Clustering
+
+One of the goals for our final deliverable is to produce a visualization that gives, to some degree, a measure of "how democratic" various nations are in relation to one another. Other examples of similar work would be the EIU democracy index, but (to my knowledge) nobody has tried to identify overall patterns in the demorcacy levels from the GSoDi. I wanted to try k-means clustering to see if the clustering algorithm produced reasonable classifications of countries on a scale relative only to other countries in the world. For this purpose, we choose to use 2019 data only (the most recent year of data available) as a static measure for the "current state" of these countries.
+
+I dabbled with the idea of also looking at how these have changed over time, but I wasn't sure how fair/clear/accurate/ethical it would be to show changing classifications of countries when the countries are being evaluated only in relation to one another, and not in relation to some objective standard.
+
 ```{r load lowest level variables from countries-2019}
 countries2019 <- read_csv('data/countries-2019.csv')
 countries2019
 ```
+
+The GSoDi collects variables at a variety of different levels of granularity (you can see all the details by using their [2019 cookbook](https://www.idea.int/gsod-indices/sites/default/files/idea-gsodi-2019-codebook-v3.pdf) in conjunction with the [2020 provisional list](https://www.idea.int/gsod-indices/sites/default/files/gsodi_2020_update.pdf), or you can check out the [overview I created](https://github.com/ariel-j-w/GSoD-viz/blob/main/Global%20State%20of%20Democracy%20Index%202020.png) for a quick, general understanding). We wanted to provide enough data points to be interesting/useful, but using the smallest level of granularity would provide far more data points than the "Fundamental Rights" category than any other. For this reason, I thought the subdomain level would be the most appropriate to do k-means clustering without unfairly weighting the data towards one category (again, [check out my overview](https://github.com/ariel-j-w/GSoD-viz/blob/main/Global%20State%20of%20Democracy%20Index%202020.png) for basic understanding of the shape of the data).
+
 ```{r}
 countries2019.subdomains <- countries2019 %>%
   select('C_SD11', 'C_SD12', 'C_SD13', 'C_SD14', 'C_SD21', 'C_SD22', 'C_SD23', 'C_SD31', 
          'C_SD32', 'C_SD33','C_SD41', 'C_SD42', 'C_SD51', 'C_SD52', 'C_SD53', 'C_SD54')
 # countries2019.subdomains
 ```
+
+Great! Now we have only the data we are interested in clustering; we are _almost_ ready to perform k-means. The one kicker with k-means is that absolutely no missing values can be present in the data; if we want to drop a missing value, we have to remove the entire country (due to the necessity of a distance measurement for k-means). Investigation of the data reveals that we have 10 missing values spread across 9 different countries (which is ultimately only 0.6% of the data corrupted). I considered throwing out countries with missing values and exlcluding them from our analysis, but some of these countries are highly interesting, and it seemed worth it to try and recover approximations for these points.
+
+In general, a widely accepted method for dealing with missing values for the purposes of k-means is to assign the missing value to be the average of the relevant indicator in all other countries. This is fine, but given that our features are all aggregations of smaller variables, I think that we can do a better job of getting more realistic estimates. In general, these aggregation values are left as missing due to one of the sub-variables being missing. Whenever possible, we choosing to reconstruct our relevant missing value, by taking the average of all sub-variables which are not missing.
 
 ```{r}
 palestine <- which(countries2019$ID_country_name == 'Palestine/West Bank')
@@ -51,6 +69,8 @@ countries2019.subdomains[palestine, 'C_SD31'] <- mean(c(countries2019$v_31_01[pa
 # countries2019.subdomains[palestine, 'C_SD31']
 ```
 
+There is one interesting caveat to the method we chose above to replace missing values: the 5.2 indicator -- electoral participation. This is the only feature in our clustering dataset who is an aggregation of only one "sub-variable": `v_52_01`: electoral participation. The 3 countries missing this value have no other reasonable way to repair the missing value, so we default to the widely accepted practice (discussed above) of using the average from that feature as a stand-in for the data: allowing k-means to run without really allowing this missing value to differentiate the country in question from any other country. 
+
 ```{r}
 mean52 <- mean(countries2019.subdomains$C_SD52, na.rm = TRUE)
 for (country in c(eswatini, uae, nkorea)) {
@@ -59,6 +79,8 @@ for (country in c(eswatini, uae, nkorea)) {
   # print(countries2019.subdomains[country, 'C_SD52'])
 }
 ```
+
+For our final missing values (5.4: Local Democracy), we can return to our previous method of averaging the non-missing sub-variables as an educated estimate for our missing value.
 
 ```{r}
 for (country in c(somalia, uae, malaysia, afghanistan, car, liberia)) {
@@ -70,6 +92,7 @@ for (country in c(somalia, uae, malaysia, afghanistan, car, liberia)) {
 }
 ```
 
+With all missing values repaired, we can use the "elbow method" to estimate how many clusters we need.
 
 ```{r}
 wss <- numeric(15)
@@ -78,13 +101,14 @@ for (k in 1:15) wss[k] <- sum(kmeans(countries2019.subdomains, centers = k, nsta
 plot(1:15, wss, type = "b", xlab = "Number of Clusters", ylab = "Within Sum of Squares")
 ```
 
-4-5
+It seems reasonable to use 4-5 clusters based on the graph above. We can then proceed with our clustering, using 100 starts to ensure extreme likliehood of always reaching the optimal solution.
 
 ```{r}
 km <- kmeans(countries2019.subdomains, centers = 5, nstart = 100)
 km
 ```
 
+Clustering in hand, we go ahead and assign a "democratic" value between 1-5 (1 being the most democratic, 5 being the least) to each of our countries based on their asssigned cluster. We map from our clustering algorithm to our desired democratic scale by sorting the assigned clusters from highest to lowest levels of democracy, using an average value of each row of the centers matrix to assign ranking; this works well since all variables in our data range from 0-1, with 1 being the most democratic. This step ensures reproducibility between instances of running our program. Finally, we save away this data to be used in a later visualization.
 
 ```{r}
 sorted <- sort(rowMeans(km$centers), decreasing = TRUE, index.return = TRUE)
@@ -98,20 +122,14 @@ write.csv(countries2019.clusters, 'democracy-clusters.csv', row.names = FALSE)
 ```
 
 
+## Gender Equality Predictors
 
+Another desired output of our final deliverable is a visualization indicating which other variables are associated with or predictive of gender equality (`C_SD23C`). Our first thought was to use a decision tree (and ultimate a variable importance chart) to identify which variables had the most predictive power in regard to gender equality.
 
 ```{r}
 countries <- read.csv('data/complete-countries.csv')
 # countries
-```
 
-```{r}
-ggplot(countries, aes(x = C_SD23C)) + 
-  geom_density(fill = '#8dcf61', color = '#6ba147', alpha=0.7)
-```
-
-
-```{r}
 countries.train80 <- read.csv('data/train80-countries.csv')
 countries.test <- read.csv('data/test-countries.csv')
 # countries.train80
@@ -126,12 +144,66 @@ genderEquality.fit <- rpart(C_SD23C ~ C_A1+C_A2+C_A3+C_A4,
 rpart.plot(genderEquality.fit)
 ```
 
+I like this idea in theory, but as you can see above (even with just a few indicative variables considered), I don't know that it is ultimately the best choice for our data. I'm not necessarily interested in the variable that had a high predictive power in differentiating between a gender equality score of 0.22 versus 0.33, I'm more interested in which variables have high predictive powers between some abstract ideas of "high gender equality" and "low gender equality". I wondered if a look at the distribution of the gender equality variable would reveal an intuitive way to distinguish between "high" versus "low".
+
+```{r}
+ggplot(countries, aes(x = C_SD23C)) + 
+  geom_density(fill = '#8dcf61', color = '#6ba147', alpha=0.7)
+```
+
+As you can see above, the shape of the distribution of gender equality is essentially a bell-curve; I didn't feel great about the level of subectivity that would go into a selection of "high" versus "low" values for this variable, and I think I would want a binary output for a decision tree to be useful. For these reasons, I decided to abandon the idea of a decision tree, and instead simply record correlation values between gender equality and other variables to later visualize. 
+
 ```{r}
 genderEquality.vars <- countries %>%
   select(C_SD23C, C_SD11, C_SD12, C_SD13, C_SD14, C_SD21, C_SD22A, C_SD22B, C_SD22C, C_SD22D, C_SD22E,
          C_SD23A, C_SD23B, C_SD31, C_SD32, C_SD33, C_SD41, C_SD42, C_SD51, C_SD52, C_SD53, C_SD54)
 genderEquality.cor <- t(cor(genderEquality.vars, use = 'pairwise.complete.obs')[,1,drop=FALSE])
 write.csv(genderEquality.cor, 'genderEquality-correlation.csv', row.names = FALSE)
+```
+
+
+## Civil Society Participation as a predictive element
+
+Another thing that I am very curious about is whether or not civil society participation (which feels very controllable; this variable aggregates things like the engagement of citizens in political associations, non-political associates, trade unions, etc.) was indicative of the level of fundamental rights enjoyed or how representative a goverment is.
+
+These won't be my final visualizations (those will be in Observable), but I mocked up some real quick ones to see if this was as interesting as I hoped it would be, and it was! Similar viz will definitely make its way into my final product.
+
+```{r}
+p <- countries2019 %>%
+  ggplot(aes(x = C_SD51, y = C_A2, color = ID_region, text = ID_country_name)) +
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE, color = 'darkgray') +
+  ggtitle('Fundamental rights and civil society participation', 
+          subtitle = 'More participatory societies enjoy more fundamental rights') +
+  xlab('Civil Society Participation') +
+  ylab('Fundamental Rights') +
+  labs(caption = 'Data Source: 2020 Global State of Democracy Index')
+ggplotly(p, tooltip = c('text')) %>%
+  layout(title = list(text = paste0('Fundamental rights and civil society participation',
+                                    '<br>',
+                                    '<sup>',
+                                    'More participatory societies enjoy more fundamental rights',
+                                    '</sup>')))
+```
+
+```{r}
+p <- countries2019 %>%
+  ggplot(aes(x = C_SD51, y = C_A1, color = ID_region, text = ID_country_name)) +
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE, color = 'darkgray') +
+  ggtitle('Representative government and civil society participation', 
+          subtitle = 'More participatory societies generally have a more representative government, but there are some notable exceptions') +
+  xlab('Civil Society Participation') +
+  ylab('Representative Government') +
+  labs(caption = 'Data Source: 2020 Global State of Democracy Index')
+ggplotly(p, tooltip = c('text')) %>%
+  layout(title = list(text = paste0('Representative government and civil society participation',
+                                    '<br>',
+                                    '<sup>',
+                                    'More participatory societies generally have a more representative government,',
+                                    '<br>',
+                                    'but there are some notable exceptions',
+                                    '</sup>')))
 ```
 
 
