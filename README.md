@@ -5,7 +5,7 @@ A visualization and exploration of key factors in the 2020 Global State of Democ
 This project relies on the [Global State of Democracy Index](https://www.idea.int/gsod-indices/dataset-resources), and the variables in the dataset can be understood through the [2019 cookbook](https://www.idea.int/gsod-indices/sites/default/files/idea-gsodi-2019-codebook-v3.pdf) and the [2020 provisional update](https://www.idea.int/gsod-indices/sites/default/files/gsodi_2020_update.pdf). 
 
 ### `Global State of Democracy Index 2020.png`
-This image is a Lucidchart diagram I created to more quickly understand and conceptualize the shape of the dataset. Though the data should not be full interpreted without the use of the aforementioned cookbook, this image is an excellent resource for quick reference and on-the-fly translation of obscure variable names.
+This image is a Lucidchart diagram I created to more quickly understand and conceptualize the shape of the dataset. Though the data should not be fully interpreted without the use of the aforementioned cookbook, this image is an excellent resource for quick reference and on-the-fly translation of obscure variable names.
 
 ## Files
 ### `exploration.Rmd`
