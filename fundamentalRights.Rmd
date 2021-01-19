@@ -1,0 +1,93 @@
+---
+title: "Fundamental Rights"
+author: "Ariel Wentworth"
+date: "1/15/2021"
+output: pdf_document
+---
+
+# Fundamental Rights
+
+This notebook endeavors to explore which fundamental rights are most closely correlated with each other.
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+```
+
+```{r}
+countries <- read_csv('data/complete-countries.csv')
+```
+
+```{r}
+cor(countries[, c('C_A1', 'C_A2', 'C_A3', 'C_A4')], use = 'pairwise.complete.obs')
+```
+
+```{r}
+cor(countries[, c('C_SD11', 'C_SD12', 'C_SD13', 'C_SD14')], use = 'pairwise.complete.obs')
+```
+
+
+```{r}
+countries %>%
+  select('v_21_01', 'v_21_02', 'v_21_03', 'v_21_04', 'v_21_05',
+         'v_23_01', 'v_23_02', 'v_23_03', 'v_23_04', 'v_23_05', 'v_23_06', 'v_23_07', 'v_23_08', 'v_23_09', 'v_23_10',
+         'v_23_22', 'v_23_23', 'v_23_24', 'v_23_25', 'v_23_26', 'v_23_27',
+         'v_23_31', 'v_23_32', 'v_23_33', 'v_23_34', 'v_23_35', 'v_23_36', 'v_23_37',
+         'v_22_01', 'v_22_02', 'v_22_03', 'v_22_04', 'v_22_05', 'v_22_06', 'v_22_07', 'v_22_08',
+         'v_22_11', 'v_22_12', 'v_22_13', 'v_22_14', 'v_22_15', 'v_22_16',
+         'v_22_21', 'v_22_22', 'v_22_23', 'v_22_24',
+         'v_22_31', 'v_22_32', 'v_22_33', 'v_22_34', 'v_22_35',
+         'v_22_41', 'v_22_42', 'v_22_43', 'v_22_44', 'v_22_45', 'v_22_46', 'v_22_47'
+  ) %>%
+  ggcorr(limits = FALSE, high = '#ad7a99')
+```
+
+```{r}
+writeCor <- countries %>%
+  select('v_21_01', 'v_21_02', 'v_21_03', 'v_21_04', 'v_21_05',
+         'v_23_01', 'v_23_02', 'v_23_03', 'v_23_04', 'v_23_05', 'v_23_06', 'v_23_07', 'v_23_08', 'v_23_09', 'v_23_10',
+         'v_23_22', 'v_23_23', 'v_23_24', 'v_23_25', 'v_23_26', 'v_23_27',
+         'v_23_31', 'v_23_32', 'v_23_33', 'v_23_34', 'v_23_35', 'v_23_36', 'v_23_37',
+         'v_22_01', 'v_22_02', 'v_22_03', 'v_22_04', 'v_22_05', 'v_22_06', 'v_22_07', 'v_22_08',
+         'v_22_11', 'v_22_12', 'v_22_13', 'v_22_14', 'v_22_15', 'v_22_16',
+         'v_22_21', 'v_22_22', 'v_22_23', 'v_22_24',
+         'v_22_31', 'v_22_32', 'v_22_33', 'v_22_34', 'v_22_35',
+         'v_22_41', 'v_22_42', 'v_22_43', 'v_22_44', 'v_22_45', 'v_22_46', 'v_22_47'
+  ) %>%
+  cor(use = 'pairwise.complete.obs')
+```
+
+Note: `v_23_21` excluded due to no available data.
+
+```{r}
+write_csv(as.data.frame(writeCor), 'fundamental-rights-correlation.csv')
+```
+
+
+
+```{r}
+countries %>%
+  select('C_SD11', 'C_SD12', 'C_SD13', 'C_SD14',
+         'C_SD21', 'C_SD22A', 'C_SD22B', 'C_SD22C', 'C_SD22D', 'C_SD22E', 'C_SD23A', 'C_SD23B', 'C_SD23C',
+         'C_SD31', 'C_SD32', 'C_SD33', 
+         'C_SD41', 'C_SD42', 
+         'C_SD51', 'C_SD52', 'C_SD53', 'C_SD54'
+  ) %>%
+  ggcorr(high = '#ad7a99', low = '#ffc857')
+```
+
+```{r}
+countries %>%
+  select('C_SD11', 'C_SD12', 'C_SD13', 'C_SD14',
+         'C_SD21', 'C_SD22A', 'C_SD22B', 'C_SD22C', 'C_SD22D', 'C_SD22E', 'C_SD23A', 'C_SD23B', 'C_SD23C',
+         'C_SD31', 'C_SD32', 'C_SD33', 
+         'C_SD41', 'C_SD42', 
+         'C_SD51', 'C_SD52', 'C_SD53', 'C_SD54'
+  ) %>%
+  cor(use = 'pairwise.complete.obs') %>%
+  as.data.frame() %>%
+  write.csv('fundamental-rights-correlation.csv')
+```
+
+

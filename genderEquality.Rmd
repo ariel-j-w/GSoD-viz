@@ -1,0 +1,201 @@
+---
+title: "Predictors of Gender Equality"
+author: "Ariel Wentworth"
+date: "January 2021"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(ggplot2)
+```
+
+```{r}
+# countries.train80 <- read_csv('data/train80-countries.csv')
+# countries.test <- read_csv('data/test-countries.csv')
+trainData <- read_csv('data/train-countries.csv')
+queryData <- read_csv('data/query-countries.csv')
+testData <- read_csv('data/test-countries.csv')
+```
+
+```{r}
+plot_imp <- function(fit) {
+  fit.imp <- rownames_to_column(data.frame(fit$variable.importance))
+  names(fit.imp)[1] <- "variable"
+  names(fit.imp)[2] <- "importance"
+  fit.imp <- mutate(fit.imp, variable = fct_reorder(variable, importance))
+  
+  ggplot(fit.imp) +
+    geom_segment(aes(x = variable, y = 0, xend = variable, yend = importance)) +
+    geom_point(aes(x = variable, y = importance, color = variable, size = 1.2), show.legend = FALSE) + 
+    coord_flip()
+}
+```
+
+```{r}
+fit_accuracy <- function(fit) {
+  pred <- predict(fit, queryData, type = "vector")
+  confusionMatrix <- table(queryData$genderEqBin, pred)
+  accuracy <- sum(diag(confusionMatrix))/sum(confusionMatrix)
+  accuracy
+}
+```
+
+# Predictors of Gender Equality
+
+In `exploration.Rmd`, I started to explore this question, but gave up on it due to the complexity of decision trees when the output variable is continuous. After some more thought, I wanted to return to the question with a new approach. Thus, in this notebook we will endeavor to use decision trees to answer the question: Which Global State of Democracy variables are the best predictors of gender equality?
+
+```{r}
+trainData <- trainData %>%
+  mutate(genderEqBin = cut(C_SD23C, breaks = c(-Inf, 0.4, 0.6, 0.8, 1)))
+# head(trainData, 500)[, c('ID_country_name', 'ID_year', 'C_SD23C', 'genderEqBin')]
+
+queryData <- queryData %>%
+  mutate(genderEqBin = cut(C_SD23C, breaks = c(-Inf, 0.4, 0.6, 0.8, 1)))
+
+testData <- testData %>%
+  mutate(genderEqBin = cut(C_SD23C, breaks = c(-Inf, 0.4, 0.6, 0.8, 1)))
+```
+
+
+
+## Decision Tree
+
+```{r}
+domains.fit <- rpart(genderEqBin ~ C_A1+C_A3+C_A4, data = trainData)
+# summary(domains.fit)
+rpart.plot(domains.fit)
+```
+
+```{r}
+fit_accuracy(domains.fit)
+```
+
+
+```{r}
+plot_imp(genderEquality.fit)
+```
+
+
+```{r}
+subdomains.fit <- rpart(genderEqBin ~ C_SD11+C_SD12+C_SD13+C_SD14+C_SD21+C_SD22+C_SD31+C_SD32+C_SD33+
+                                         C_SD41+C_SD42+C_SD51+C_SD52+C_SD53+C_SD54, data = trainData)
+rpart.plot(subdomains.fit)
+```
+
+```{r}
+plot_imp(subdomains.fit)
+```
+
+```{r}
+fit_accuracy(subdomains.fit)
+```
+
+
+
+```{r}
+subsubdomains.fit <- rpart(genderEqBin ~ C_SD22A+C_SD22B+C_SD22C+C_SD22D+C_SD22E+C_SD13+
+                                            C_SD21+C_SD33+C_SD42+C_SD32+C_SD23A+C_SD23B, data = trainData)
+rpart.plot(subsubdomains.fit)
+```
+
+```{r}
+plot_imp(subsubdomains.fit)
+```
+
+```{r}
+fit_accuracy(subsubdomains.fit)
+```
+
+
+```{r}
+variables.fit <- rpart(genderEqBin ~
+                         v_23_01+v_23_02+v_23_03+v_23_04+v_23_05+v_23_06+v_23_07+v_23_08+v_23_09+v_23_10+
+                         v_22_01+v_22_02+v_22_03+v_22_04+v_22_05+v_22_06+v_22_07+v_22_08+
+                         v_21_01+v_21_02+v_21_03+v_21_04+v_21_05+
+                         v_42_01+v_42_02+v_42_03+v_42_04+v_42_06+
+                         v_22_41+v_22_42+v_22_43+v_22_44+v_22_45+v_22_46+v_22_47+ 
+                         v_22_31+v_22_32+v_22_33+v_22_34+v_22_35,
+                       data = countries)
+rpart.plot(variables.fit)
+```
+
+```{r}
+plot_imp(variables.fit)
+```
+
+```{r}
+fit_accuracy(variables.fit)
+```
+
+```{r}
+imp <- rownames_to_column(data.frame(variables.fit$variable.importance))
+names(imp)[1] <- "variable"
+names(imp)[2] <- "importance"
+
+imp %>% mutate(relativeImportance = importance/sum(importance))
+```
+
+```{r}
+pruned.fit <- rpart(genderEqBin ~ v_23_08+v_23_09+v_23_06+v_23_07+v_21_02+v_21_01+v_23_02+v_23_04+
+                      v_22_33+v_22_06+v_22_05+v_22_03, data = countries)
+rpart.plot(pruned.fit)
+```
+
+```{r}
+plot_imp(pruned.fit)
+```
+
+```{r}
+fit_accuracy(pruned.fit)
+```
+
+
+```{r}
+pred <- predict(pruned.fit, testData, type = "vector")
+confusionMatrix <- table(testData$genderEqBin, pred)
+accuracy <- sum(diag(confusionMatrix))/sum(confusionMatrix)
+accuracy
+```
+
+
+
+```{r}
+imp <- rownames_to_column(data.frame(pruned.fit$variable.importance))
+names(imp)[1] <- "variable"
+names(imp)[2] <- "importance"
+imp %>% 
+  mutate(variable = fct_reorder(variable, importance)) %>%
+  mutate(feature = c('Exclusion by social group index (inverted)',
+                     'Exculsion by urban/rural location (inverted)',
+                     'Exclusion by socio-economic group (inverted)',
+                     'Exclusion by political group index (inverted)',
+                     'Access to justice for women',
+                     'Access to justice for men',
+                     'Social group equality in respect to civil liberties',
+                     'Power distributed by social group',
+                     'Freedom of domestic movement for men',
+                     'Freedom of academic and cultural expression',
+                     'Freedom of discussion for men',
+                     'Media self-censorship')) %>%
+  mutate(relativeImportance = importance/sum(importance)) %>%
+  ggplot() +
+  geom_segment(aes(x = reorder(feature, relativeImportance), y = 0, xend = feature, yend = relativeImportance)) +
+  geom_point(aes(x = reorder(feature, relativeImportance), y = relativeImportance, size = 1.2),
+             color = '#ad7a99', show.legend = FALSE) +
+  xlab('') +
+  ylab('Relative Importance') + 
+  ggtitle('Variable Importance in Prediction of Gender Equality') +
+  coord_flip()
+```
+
+```{r}
+imp <- rownames_to_column(data.frame(pruned.fit$variable.importance))
+names(imp)[1] <- "variable"
+names(imp)[2] <- "importance"
+
+imp %>% mutate(relativeImportance = importance/sum(importance))
+```
+
