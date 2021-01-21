@@ -10,7 +10,14 @@ library(tidyverse)
 library(rpart)
 library(rpart.plot)
 library(ggplot2)
+library(showtext)
 ```
+
+```{r}
+showtext_auto()
+font_add_google(name = 'Lato', family = 'lato')
+```
+
 
 ```{r}
 # countries.train80 <- read_csv('data/train80-countries.csv')
@@ -75,7 +82,7 @@ fit_accuracy(domains.fit)
 
 
 ```{r}
-plot_imp(genderEquality.fit)
+plot_imp(domains.fit)
 ```
 
 
@@ -193,7 +200,8 @@ imp %>%
   xlab('') +
   ylab('Relative Importance') + 
   ggtitle('Variable Importance in Prediction of Gender Equality') +
-  coord_flip()
+  coord_flip() +
+  theme(text = element_text(family = 'lato'))
 ```
 
 ```{r}
