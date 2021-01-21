@@ -197,7 +197,7 @@ imp %>%
 ```
 
 ```{r}
-ggsave('genderEquality.jpg', width = 9, height = 6)
+ggsave('genderEquality.png', width = 9, height = 6, device='png')
 ```
 
 
