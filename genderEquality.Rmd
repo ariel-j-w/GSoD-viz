@@ -118,7 +118,7 @@ variables.fit <- rpart(genderEqBin ~
                          v_42_01+v_42_02+v_42_03+v_42_04+v_42_06+
                          v_22_41+v_22_42+v_22_43+v_22_44+v_22_45+v_22_46+v_22_47+ 
                          v_22_31+v_22_32+v_22_33+v_22_34+v_22_35,
-                       data = countries)
+                       data = trainData)
 rpart.plot(variables.fit)
 ```
 
@@ -138,9 +138,11 @@ names(imp)[2] <- "importance"
 imp %>% mutate(relativeImportance = importance/sum(importance))
 ```
 
+To try and avoid overfitting, we only keep variables which are at least 1% important to the decision tree outcome.
+
 ```{r}
 pruned.fit <- rpart(genderEqBin ~ v_23_08+v_23_09+v_23_06+v_23_07+v_21_02+v_21_01+v_23_02+v_23_04+
-                      v_22_33+v_22_06+v_22_05+v_22_03, data = countries)
+                      v_22_06+v_22_31+v_22_32+v_22_33+v_22_05+v_22_03+v_22_01, data = trainData)
 rpart.plot(pruned.fit)
 ```
 
@@ -176,9 +178,12 @@ imp %>%
                      'Access to justice for men',
                      'Social group equality in respect to civil liberties',
                      'Power distributed by social group',
-                     'Freedom of domestic movement for men',
+                     'Freedom of foreign movement',
                      'Freedom of academic and cultural expression',
+                     'Freedom of domestic movement for women',
+                     'Freedom of domestic movement for men',
                      'Freedom of discussion for men',
+                     'Print/broadcast censorship effort',
                      'Media self-censorship')) %>%
   mutate(relativeImportance = importance/sum(importance)) %>%
   ggplot() +
@@ -190,6 +195,11 @@ imp %>%
   ggtitle('Variable Importance in Prediction of Gender Equality') +
   coord_flip()
 ```
+
+```{r}
+ggsave('genderEquality.jpg', width = 9, height = 6)
+```
+
 
 ```{r}
 imp <- rownames_to_column(data.frame(pruned.fit$variable.importance))
