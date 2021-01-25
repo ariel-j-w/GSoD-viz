@@ -160,7 +160,7 @@ imp %>% mutate(relativeImportance = importance/sum(importance))
 ```{r}
 pruned.fit <- rpart(genderEqBin ~ v_23_08+v_23_09+v_23_06+v_23_07+v_21_02+v_21_01+v_23_02+v_23_04+
                       v_22_06+v_22_31+v_22_32+v_22_33+v_22_05+v_22_03+v_22_01, data = trainData)
-rpart.plot(pruned.fit) 
+rpart.plot(pruned.fit, box.palette = 'Greys') 
 ```
 
 ```{r}
