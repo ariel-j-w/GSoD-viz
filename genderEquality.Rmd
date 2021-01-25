@@ -18,14 +18,21 @@ showtext_auto()
 font_add_google(name = 'Lato', family = 'lato')
 ```
 
+# Predictors of Gender Equality
+
+In this file, we explore predictors of gender equality based on the [Global State of Democracy Index](https://www.idea.int/gsod-indices/dataset-resources) (hereafter GSoDi). All data has been [mildly pre-processed](https://github.com/ariel-j-w/GSoD-viz/blob/main/pre-processing.ipynb) already, and here we work through the decision tree analysis in order to identify which indicators are predictive of gender equality. Working with the variables in this dataset will be key for this analysis, so I recommend keeping [a cheat sheet](https://github.com/ariel-j-w/GSoD-viz/blob/main/Global%20State%20of%20Democracy%20Index%202020.png) on hand to remind yourself of the variables' meanings.
+
+In `exploration.Rmd`, I started to explore this question, but gave up on it due to the complexity of decision trees when the output variable is continuous. After some more thought, I wanted to return to the question with a new approach. Thus, in this notebook we will endeavor to use decision trees to answer the question: Which Global State of Democracy variables are the best predictors of gender equality?
+
+To start, we load in our data. 60% of the original data is in `trainData`, which we will use to train our models. Another 20% of the data is in `queryData`, which we will use to test accuracy of our trained models, aiding our decision in what level of data granularity to use. Finally, `testData` will only be used to estimate the accuracy of our final trained model.
 
 ```{r}
-# countries.train80 <- read_csv('data/train80-countries.csv')
-# countries.test <- read_csv('data/test-countries.csv')
 trainData <- read_csv('data/train-countries.csv')
 queryData <- read_csv('data/query-countries.csv')
 testData <- read_csv('data/test-countries.csv')
 ```
+
+We first define a couple of functions (`plot_imp` and `fit_accuracy`) that will be useful as we go along to quickly plot the variable importance chart and to estimate model accuracy using query data.
 
 ```{r}
 plot_imp <- function(fit) {
@@ -50,9 +57,7 @@ fit_accuracy <- function(fit) {
 }
 ```
 
-# Predictors of Gender Equality
-
-In `exploration.Rmd`, I started to explore this question, but gave up on it due to the complexity of decision trees when the output variable is continuous. After some more thought, I wanted to return to the question with a new approach. Thus, in this notebook we will endeavor to use decision trees to answer the question: Which Global State of Democracy variables are the best predictors of gender equality?
+In order to use classification trees for this analysis (and reduce complexity of determining accuracy and best fit), we will bin our data into 4 bins of gender equalaity ratings.
 
 ```{r}
 trainData <- trainData %>%
@@ -67,8 +72,11 @@ testData <- testData %>%
 ```
 
 
-
 ## Decision Tree
+
+There are so many different levels of data granularity, that one of our main objectives will be to determine which level of data is going to be the most effective for prediction. We decided to start with the highest level of abstraction, and use decision tree analysis at this level to inform our decisions for what variables to include as we slowly work into more granular data.
+
+Thus, we start with this decision tree at the domain level, including domains 1 (representative government), 3 (checks on government), and 4 (impartial administration). We exclude domain 5 (participatory engagement) because the GSoDi defines no aggregate measure for this domain. We also exlcude domain 2 (fundamental rights) because gender equality is a sub-variable under domain 2, and since gender equality is thus part of the measurement that directly determines the measure for fundamental rights, including it here would be inappropriate.
 
 ```{r}
 domains.fit <- rpart(genderEqBin ~ C_A1+C_A3+C_A4, data = trainData)
@@ -85,6 +93,7 @@ fit_accuracy(domains.fit)
 plot_imp(domains.fit)
 ```
 
+The variable importance chart reveals that there isn't a huge difference between the importance for these domains, so we include all of their subdomains in our next analysis. We also add in the subdomains from domains 2 and 5, but exclude subdomain 2.3 (social rights and equality) since gender equality is one of the variables aggregated by subdomain 2.3.
 
 ```{r}
 subdomains.fit <- rpart(genderEqBin ~ C_SD11+C_SD12+C_SD13+C_SD14+C_SD21+C_SD22+C_SD31+C_SD32+C_SD33+
@@ -100,7 +109,7 @@ plot_imp(subdomains.fit)
 fit_accuracy(subdomains.fit)
 ```
 
-
+Based on the variable importance chart above, we can see that there is a clear difference between the importance of the first 6 subdomains listed and the rest of the variables. For our next step, we include only these 6 subdomains, expanding subdomain 2.2 into its A-E parts and adding parts A (social group equality) and B (basic welfare) of subdomain 2.3 (social rights and equality). Remember that 2.3 was not included in our previous step since gender equality (our output variable, i.e. 2.3C) is part of the definition of 2.3, but since gender equality does not aggregate into 2.3A or 2.3B, we can include them here.
 
 ```{r}
 subsubdomains.fit <- rpart(genderEqBin ~ C_SD22A+C_SD22B+C_SD22C+C_SD22D+C_SD22E+C_SD13+
@@ -116,6 +125,7 @@ plot_imp(subsubdomains.fit)
 fit_accuracy(subsubdomains.fit)
 ```
 
+We are up to almost 76% accuracy, which is exciting! We can also see from the above variable importance chart that the first six variables listed (2.3A, 2.2A, 2.1, 4.2, 2.2E, and 2.2D) are significantly more important than their counterparts in predicting gender equality. Thus, we go one more step of looking at a decision tree with the individual indicators which ultimately aggregate into these variables.
 
 ```{r}
 variables.fit <- rpart(genderEqBin ~
@@ -137,6 +147,8 @@ plot_imp(variables.fit)
 fit_accuracy(variables.fit)
 ```
 
+Wow, we are up to nearly 78% accuracy! That's great, but there are a ton of variables in this decision tree. I'm worried that we are most likely overfitting the data as is. For this reason, we are going to "prune" our tree, and remove the variables which contribute to less than 1% of the overall importance. This way, we should keep the most important predictors while slimming down our tree.
+
 ```{r}
 imp <- rownames_to_column(data.frame(variables.fit$variable.importance))
 names(imp)[1] <- "variable"
@@ -145,12 +157,10 @@ names(imp)[2] <- "importance"
 imp %>% mutate(relativeImportance = importance/sum(importance))
 ```
 
-To try and avoid overfitting, we only keep variables which are at least 1% important to the decision tree outcome.
-
 ```{r}
 pruned.fit <- rpart(genderEqBin ~ v_23_08+v_23_09+v_23_06+v_23_07+v_21_02+v_21_01+v_23_02+v_23_04+
                       v_22_06+v_22_31+v_22_32+v_22_33+v_22_05+v_22_03+v_22_01, data = trainData)
-rpart.plot(pruned.fit)
+rpart.plot(pruned.fit) 
 ```
 
 ```{r}
@@ -161,6 +171,7 @@ plot_imp(pruned.fit)
 fit_accuracy(pruned.fit)
 ```
 
+Great! We still have 74.78% accuracy in our pruned tree according to query data, but it's appropriate now to pull out the test data to get a more true measure of accuracy. This step, of checking accuracy with a dataset that has not at all influenced model selection, is important to get our best possible guess for how our model will do with new, previously unseen "real world" data. This type of check might also help us detect overfitting.
 
 ```{r}
 pred <- predict(pruned.fit, testData, type = "vector")
@@ -169,7 +180,19 @@ accuracy <- sum(diag(confusionMatrix))/sum(confusionMatrix)
 accuracy
 ```
 
+Nearly 77% accuracy seems really great to me! Another metric I was interested in was how often this tree classifies an observation into either its correct bin or an adjacent one. As a general sense, how often does this decision tree "get close"? 
 
+```{r}
+pred <- predict(pruned.fit, testData, type = "vector")
+confusionMatrix <- table(testData$genderEqBin, pred)
+psuedoAccuracy <- (sum(diag(confusionMatrix))+confusionMatrix[2,1]+confusionMatrix[1,2]+
+  confusionMatrix[3,2]+confusionMatrix[2,3]+confusionMatrix[4,3]+confusionMatrix[3,4])/sum(confusionMatrix)
+psuedoAccuracy
+```
+
+Over 99% of the time this model accurately predicts either an observations bin or its adjacent bin! Wow! It's really encouraging to know that there is less than 1% of the time that the classifier will be just completely wrong.
+
+We now do a little bit of work to clean up our variable importance visualization and save it to a png.
 
 ```{r}
 imp <- rownames_to_column(data.frame(pruned.fit$variable.importance))
@@ -206,14 +229,5 @@ imp %>%
 
 ```{r}
 ggsave('genderEquality.png', width = 9, height = 6, device='png')
-```
-
-
-```{r}
-imp <- rownames_to_column(data.frame(pruned.fit$variable.importance))
-names(imp)[1] <- "variable"
-names(imp)[2] <- "importance"
-
-imp %>% mutate(relativeImportance = importance/sum(importance))
 ```
 

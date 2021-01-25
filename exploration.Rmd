@@ -15,7 +15,7 @@ library(plotly)
 
 # Exploration
 
-In this file, we build up the preliminary exploration needed for an investigative visualization piece of the [Global State of Democracy Index](https://www.idea.int/gsod-indices/dataset-resources) (hereafter GSoDi). All data has been [mildly pre-processed](https://github.com/ariel-j-w/GSoD-viz/blob/main/pre-processing.ipynb) already, and here we focus on building models and doing quick exploratoy viz as part of the brainstorming process for a future Observable notebook with robust d3 visualizations.
+In this file, we build up the preliminary exploration needed for an investigative visualization piece of the [Global State of Democracy Index](https://www.idea.int/gsod-indices/dataset-resources) (hereafter GSoDi). All data has been [mildly pre-processed](https://github.com/ariel-j-w/GSoD-viz/blob/main/pre-processing.ipynb) already, and here we focus on building models and doing quick exploratoy viz as part of the brainstorming process for future visualizations.
 
 ```{r load data}
 data <- read_csv('data/gsodi_pv_4.csv')
@@ -44,7 +44,7 @@ countries2019.subdomains <- countries2019 %>%
 
 Great! Now we have only the data we are interested in clustering; we are _almost_ ready to perform k-means. The one kicker with k-means is that absolutely no missing values can be present in the data; if we want to drop a missing value, we have to remove the entire country (due to the necessity of a distance measurement for k-means). Investigation of the data reveals that we have 10 missing values spread across 9 different countries (which is ultimately only 0.6% of the data corrupted). I considered throwing out countries with missing values and exlcluding them from our analysis, but some of these countries are highly interesting, and it seemed worth it to try and recover approximations for these points.
 
-In general, a widely accepted method for dealing with missing values for the purposes of k-means is to assign the missing value to be the average of the relevant indicator in all other countries. This is fine, but given that our features are all aggregations of smaller variables, I think that we can do a better job of getting more realistic estimates. In general, these aggregation values are left as missing due to one of the sub-variables being missing. Whenever possible, we choosing to reconstruct our relevant missing value, by taking the average of all sub-variables which are not missing.
+In general, a widely accepted method for dealing with missing values for the purposes of k-means is to assign the missing value to be the average of the relevant indicator in all other countries. This is fine, but given that our features are all aggregations of smaller variables, I think that we can do a better job of getting more realistic estimates. In general, these aggregation values are left as missing due to one of the sub-variables being missing. Whenever possible, we will choose to reconstruct our relevant missing value, by taking the average of all sub-variables which are not missing.
 
 ```{r}
 palestine <- which(countries2019$ID_country_name == 'Palestine/West Bank')
@@ -166,7 +166,9 @@ write.csv(genderEquality.cor, 'genderEquality-correlation.csv', row.names = FALS
 
 Another thing that I am very curious about is whether or not civil society participation (which feels very controllable; this variable aggregates things like the engagement of citizens in political associations, non-political associates, trade unions, etc.) was indicative of the level of fundamental rights enjoyed or how representative a goverment is.
 
-These won't be my final visualizations (those will be in Observable), but I mocked up some real quick ones to see if this was as interesting as I hoped it would be, and it was! Similar viz will definitely make its way into my final product.
+These won't be my final visualizations, but I mocked up some real quick ones to see if this was as interesting as I hoped it would be, and it was! Similar viz will definitely make its way into my final product.
+
+Update as of 1/25/21: for now, this visualization unfortunately has not made it's way into my final product yet. With the term coming to a close soon, I had to focus my energy elsewhere for now as I make sure other things are wrapped up before the deadline.
 
 ```{r}
 p <- countries2019 %>%
