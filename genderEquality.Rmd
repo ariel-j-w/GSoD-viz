@@ -11,6 +11,7 @@ library(rpart)
 library(rpart.plot)
 library(ggplot2)
 library(showtext)
+library(formattable)
 ```
 
 ```{r}
@@ -27,6 +28,7 @@ In `exploration.Rmd`, I started to explore this question, but gave up on it due 
 To start, we load in our data. 60% of the original data is in `trainData`, which we will use to train our models. Another 20% of the data is in `queryData`, which we will use to test accuracy of our trained models, aiding our decision in what level of data granularity to use. Finally, `testData` will only be used to estimate the accuracy of our final trained model.
 
 ```{r}
+countries <- read_csv('data/complete-countries.csv')
 trainData <- read_csv('data/train-countries.csv')
 queryData <- read_csv('data/query-countries.csv')
 testData <- read_csv('data/test-countries.csv')
@@ -228,6 +230,55 @@ imp %>%
 ```
 
 ```{r}
-ggsave('genderEquality.png', width = 9, height = 6, device='png')
+ggsave('output-charts/genderEquality.png', width = 9, height = 6, device='png')
 ```
+
+
+## Visualizing the impact of important variables
+
+Ultimately, we want to take these important variables and see what their relationship to gender equality actually is. For this visualization, we are just going to look at simple scatter plots.
+
+```{r}
+important_vars <- c('v_23_08', 'v_23_09', 'v_23_06', 'v_23_07', 'v_21_02', 'v_21_01', 'v_23_02', 'v_23_04', 
+                    'v_22_06', 'v_22_31', 'v_22_32', 'v_22_33', 'v_22_05', 'v_22_03', 'v_22_01')
+
+important_names <- c('Exclusion by social group index (inverted)',
+                     'Exculsion by urban/rural location (inverted)',
+                     'Exclusion by socio-economic group (inverted)',
+                     'Exclusion by political group index (inverted)',
+                     'Access to justice for women',
+                     'Access to justice for men',
+                     'Social group equality in respect to civil liberties',
+                     'Power distributed by social group',
+                     'Freedom of academic and cultural expression',
+                     'Freedom of foreign movement',
+                     'Freedom of domestic movement for women',
+                     'Freedom of domestic movement for men',
+                     'Freedom of discussion for men',
+                     'Media self-censorship',
+                     'Print/broadcast censorship effort')
+```
+
+```{r}
+importance <- imp %>% mutate(relativeImportance = importance/sum(importance))
+importance
+```
+
+
+```{r}
+for(i in 1:length(important_vars)){
+  importancePercent <- percent(importance[importance$variable==important_vars[i],'relativeImportance'])
+  plot <- countries %>%
+    ggplot(aes(x=C_SD23C, y=eval(as.name(important_vars[i])))) +
+    geom_point(size=0.5, color = '#ad7a99') + 
+    ylab(important_names[i]) + 
+    xlab('Freedom of religion') +
+    ggtitle(paste(important_names[i], 'versus gender equality: all observations'),
+            subtitle = paste(important_names[i], 'is', importancePercent, 'important in predicting gender equality')) +
+    theme(text = element_text(family = 'lato'))
+  ggsave(paste0('output-charts/gender-equality-relationships/', important_vars[i], '.png'), device='png',
+         width = 8, height = 7)
+}
+```
+
 
